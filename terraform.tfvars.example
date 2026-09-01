@@ -1,0 +1,151 @@
+# ==============================================================================
+#  aws-sqs — terraform.tfvars
+# ==============================================================================
+#  Copy this file to `terraform.tfvars`, set the values, then run:
+#      tofu init && tofu apply        (or:  terraform init && terraform apply)
+#
+# AUTHENTICATION — AWS:
+#   The AWS provider authenticates exactly like the AWS SDK/CLI, resolving
+#   credentials through a fixed precedence chain and (separately) requiring a
+#   region.
+#   Quick start: aws sso login --profile <name> (or `aws configure sso`
+#   first-time setup; `aws configure` for static keys). The SDK/Terraform read
+#   the SSO/credential cache automatically.
+#   Environment variables Terraform reads:
+#     AWS_ACCESS_KEY_ID  (secret) — Access key ID for static/temporary credentials.
+#     AWS_SECRET_ACCESS_KEY  (secret) — Secret access key paired with the access key ID.
+#     AWS_SESSION_TOKEN  (secret) — Session token for temporary (STS) credentials.
+#     AWS_REGION — Target AWS region (required); preferred over AWS_DEFAULT_REGION.
+#     AWS_DEFAULT_REGION — Legacy region variable; used if AWS_REGION is unset.
+#   Full guide (auth + remote state):  docs/CONNECTING-PROVIDERS.md#aws
+#
+#  Secrets below read "REPLACE_ME" — never commit real secrets. Prefer
+#  TF_VAR_<name> environment variables or a secrets manager.
+#  Status: static-validated, live-test pending (see README.md).
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+#  REQUIRED — you must set these
+# ------------------------------------------------------------------------------
+
+# name  —  string  (REQUIRED)
+#   Queue name. For FIFO queues the .fifo suffix is appended automatically if
+#   missing.
+#   Constraint: name must be 1-70 characters of [a-zA-Z0-9_-] (an optional .fifo
+#   suffix is allowed; it is added automatically for FIFO queues).
+name = "iacbazaar-example-orders"
+
+# ------------------------------------------------------------------------------
+#  OPTIONAL — defaults shown; uncomment a line to override
+# ------------------------------------------------------------------------------
+
+# fifo_queue  —  bool  (optional, default: false)
+#   Create a FIFO queue (and FIFO DLQ). Naming suffixes are handled
+#   automatically.
+# fifo_queue = false
+
+# content_based_deduplication  —  bool  (optional, default: false)
+#   FIFO only: deduplicate on a SHA-256 of the message body instead of an
+#   explicit deduplication id.
+# content_based_deduplication = false
+
+# deduplication_scope  —  string  (optional, default: "queue")
+#   FIFO only: deduplication scope (queue or messageGroup). messageGroup is
+#   required for high-throughput FIFO.
+#   Constraint: deduplication_scope must be queue or messageGroup.
+# deduplication_scope = "queue"
+
+# fifo_throughput_limit  —  string  (optional, default: "perQueue")
+#   FIFO only: throughput quota scope (perQueue or perMessageGroupId).
+#   perMessageGroupId enables high-throughput FIFO.
+#   Constraint: fifo_throughput_limit must be perQueue or perMessageGroupId.
+# fifo_throughput_limit = "perQueue"
+
+# visibility_timeout_seconds  —  number  (optional, default: 30)
+#   Visibility timeout. Set to at least 6x your consumer's processing time
+#   (Lambda: 6x function timeout).
+#   Constraint: visibility_timeout_seconds must be between 0 and 43200.
+# visibility_timeout_seconds = 30
+
+# message_retention_seconds  —  number  (optional, default: 345600)
+#   How long the main queue retains messages (default 4 days, max 14 days).
+#   Constraint: message_retention_seconds must be between 60 and 1209600.
+# message_retention_seconds = 345600
+
+# max_message_size  —  number  (optional, default: 262144)
+#   Maximum message size in bytes.
+#   Constraint: max_message_size must be between 1024 and 262144.
+# max_message_size = 262144
+
+# delay_seconds  —  number  (optional, default: 0)
+#   Default per-queue delivery delay.
+#   Constraint: delay_seconds must be between 0 and 900.
+# delay_seconds = 0
+
+# receive_wait_time_seconds  —  number  (optional, default: 10)
+#   Long-polling wait time. 10s by default: fewer empty receives, lower cost;
+#   set 0 for short polling.
+#   Constraint: receive_wait_time_seconds must be between 0 and 20.
+# receive_wait_time_seconds = 10
+
+# kms_key_id  —  string  (optional, default: null)
+#   Customer-managed KMS key (id, alias, or ARN) for SSE-KMS. Null = SQS-managed
+#   SSE (still encrypted at rest).
+# kms_key_id = null
+
+# kms_data_key_reuse_period_seconds  —  number  (optional, default: 300)
+#   How long SQS may reuse a data key before calling KMS again (only with
+#   kms_key_id).
+#   Constraint: kms_data_key_reuse_period_seconds must be between 60 and 86400.
+# kms_data_key_reuse_period_seconds = 300
+
+# create_dlq  —  bool  (optional, default: true)
+#   Create a dead-letter queue and wire the redrive + redrive-allow policies.
+# create_dlq = true
+
+# dlq_name  —  string  (optional, default: null)
+#   Override the DLQ name. Defaults to <name>-dlq (with .fifo handling for FIFO
+#   queues).
+# dlq_name = null
+
+# max_receive_count  —  number  (optional, default: 5)
+#   Receives before a message is moved to the DLQ.
+#   Constraint: max_receive_count must be between 1 and 1000.
+# max_receive_count = 5
+
+# dlq_message_retention_seconds  —  number  (optional, default: 1209600)
+#   DLQ retention (default 14 days, the maximum -- dead letters need
+#   investigation time).
+#   Constraint: dlq_message_retention_seconds must be between 60 and 1209600.
+# dlq_message_retention_seconds = 1209600
+
+# create_queue_policy  —  bool  (optional, default: true)
+#   Attach the module's queue policies (TLS-only deny + allow-listed
+#   principals). Disable only if you manage aws_sqs_queue_policy yourself.
+# create_queue_policy = true
+
+# producer_arns  —  list  (optional, default: [])
+#   IAM principal ARNs allowed to send messages (sqs:SendMessage).
+producer_arns = ["arn:aws:iam::123456789012:role/example-producer"]
+
+# consumer_arns  —  list  (optional, default: [])
+#   IAM principal ARNs allowed to receive/delete messages.
+consumer_arns = ["arn:aws:iam::123456789012:role/example-consumer"]
+
+# service_publishers  —  map  (optional, default: {})
+#   AWS services allowed to publish, pinned to a source ARN. Example: { sns = {
+#   service = "sns.amazonaws.com", source_arn = aws_sns_topic.t.arn } }.
+service_publishers = {
+  sns = {
+    service    = "sns.amazonaws.com"
+    source_arn = "arn:aws:sns:us-east-1:123456789012:example-topic"
+  }
+}
+
+# tags  —  map  (optional, default: {})
+#   Tags applied to all resources.
+tags = {
+  Environment = "example"
+  ManagedBy   = "iac-bazaar"
+}
